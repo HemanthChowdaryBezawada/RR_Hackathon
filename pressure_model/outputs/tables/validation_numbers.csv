@@ -1,0 +1,4 @@
+validation,value
+split-half Spearman,0.031087317636737565
+temporal Spearman,-0.013681641962338351
+bootstrap reps,300.0

@@ -1,0 +1,30 @@
+{
+ "generated_at": "2026-11-15 16:38 UTC",
+ "counts": {
+  "usable_matches": 805,
+  "usable_balls": 192156,
+  "ipl_matches": 352,
+  "t20i_and_other_matches": 453,
+  "eligible_batters": 91,
+  "eligible_bowlers": 103
+ },
+ "data_window": [
+  "2022-01-22",
+  "2026-11-01"
+ ],
+ "rules": {
+  "excluded_from_rankings": [
+   "Pakistan",
+   "Pakistan A"
+  ],
+  "included_note": "Bangladeshi players are included: seven registered for the IPL 2027 mini-auction (16 Dec 2026); auction inclusion is not guaranteed.",
+  "min_high_balls": {
+   "batter": 150,
+   "bowler": 120
+  },
+  "min_consistency_units": 12,
+  "min_seasons": 2,
+  "active_within_days": 365
+ },
+ "missing_sections": []
+}

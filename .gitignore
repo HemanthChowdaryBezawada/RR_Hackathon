@@ -1,0 +1,22 @@
+# Environments and virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Dependencies
+node_modules/
+
+# Python cache & build
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Testing & Browser artifacts
+test-results/
+.playwright-mcp/
+
+# OS specific files
+.DS_Store
+Thumbs.db

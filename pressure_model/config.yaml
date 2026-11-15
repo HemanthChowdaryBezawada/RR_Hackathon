@@ -1,0 +1,74 @@
+seed: 42
+n_jobs: 6
+runs_reconstruction_mode: fractional_expected
+data_dir: ../data_pack
+outputs_dir: outputs
+columns:
+  match_id: match_id
+  innings: innings
+  over: overid
+  innings_ball: innings_ball_num
+  runs: runs
+  is_four: is_four
+  is_six: is_six
+  is_wicket: is_wicket
+  extras_type: extras_type
+  extras_code: extras1_runs
+  extras_runs: extras_2_runs
+  wicket: is_wicket
+  dismissal_type: dismissal_type
+  dismissed_player_id: dismissed_player_id
+  match_date: match_date
+  competition_id: comp_id
+  competition_name: comp_name
+  season: season
+  match_result: result
+  winner_team_id: win_team_id
+  team_id: team_id
+  team_name: team_name
+  player_id: player_id
+  player_name: player_name
+  striker_id: striker_id
+  non_striker_id: non_striker_id
+  bowler_id: bowler_id
+  batting_team_id: batting_team_id
+  bowling_team_id: bowling_team_id
+  home_team_id: home_team_id
+  away_team_id: away_team_id
+resolved_rules:
+  run_formula: R2=runs+wide/Overstep
+  illegal_extras:
+  - Overstep
+  - other
+  - wide
+  wicket_rule: is_wicket == True only; Retire Out neutral
+  exclude_matches_without_ball_data: true
+  excluded_teams:
+  - Pakistan
+  - Pakistan A
+  alt_excluded_teams:
+  - Bangladesh
+  - Bangladesh A
+  extras_runs:
+    wide: 0
+    legbyes: 1
+    byes: 2
+    Overstep: 0
+    other: 0
+  legal_illegal_extras:
+  - Overstep
+  - other
+  - wide
+  penalty_runs: 5
+  display_names: player_name as-is
+  reconstructed_margin_accuracy:
+    exact_share: 0.013966
+    within_2_share: 0.539106
+    mean_absolute_error: 2.165808
+  runs_reconstruction_mode: fractional_expected
+  fractional_coefficients:
+    wide: 0.17383778501752759
+    legbyes: 1.331439135954097
+    byes: 2.1388665166936205
+    Overstep: 0.0
+    other: 0.29118439510839234

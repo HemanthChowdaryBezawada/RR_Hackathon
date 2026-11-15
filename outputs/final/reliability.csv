@@ -1,0 +1,3 @@
+role,n_players,mean_n,sigma_per_ball,tau_per_ball,tau_per_100,mean_rel,median_rel
+batter,293,137.52901023890786,2.166765355638152,0.0,0.0,0.0,0.0
+bowler,299,145.69230769230768,2.117997527489093,0.0,0.0,0.0,0.0
