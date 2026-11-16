@@ -1,6 +1,6 @@
 # SupeRR Lab: Pressure Index Analytics Engine
 
-An institutional-grade, static, build-free analytics dashboard served directly from `docs/` for GitHub Pages. It visualizes empirical Bayes player ratings, credible intervals, pre-ball pressure taxonomy, hyperparameter sensitivity, and hold-out validation diagnostics.
+An institutional-grade, static, build-free analytics dashboard served directly from `docs/` for GitHub Pages. It visualizes empirical Bayes player ratings, 80% intervals (bootstrap), pre-ball pressure taxonomy, hyperparameter sensitivity, and hold-out validation diagnostics.
 
 ---
 
@@ -17,10 +17,10 @@ There is **ONE official ranking list**. Pakistan and Pakistan A players are excl
 - **Metric Units**:
   - `rating`, `lo80`, `hi80`, `beta`, `delta`: Calibrated runs delivered above contextual match expectation per 100 high-pressure deliveries.
   - `wpa`: Win-probability added points per 100 deliveries.
-- **80% Credible Range (`[lo80, hi80]`)**:
-  - Computed via 300 match-level bootstrap iterations. Whiskers demarcate where the true player latent skill lies with 80% posterior credibility. Overlapping whiskers indicate statistical parity rather than deterministic separation.
+- **80% Interval (Bootstrap) Range (`[lo80, hi80]`)**:
+  - Computed via 300 match-level bootstrap iterations. Whiskers demarcate where the true player latent skill lies with an 80% interval (bootstrap). Overlapping whiskers indicate statistical parity rather than deterministic separation.
 - **Top 10 Probability ($P(\text{top 10})$)**:
-  - The share of bootstrap resamples in which a player finishes inside the tournament top 10. Ranks with $P(\text{top 10}) \ge 80\%$ demonstrate firm credibility, while $P(\text{top 10}) < 50\%$ indicates statistical ties.
+  - The share of bootstrap resamples in which a player finishes inside the tournament top 10. Ranks with $P(\text{top 10}) \ge 80\%$ demonstrate high certainty, while $P(\text{top 10}) < 50\%$ indicates statistical ties.
 - **Decomposition**:
   - $\beta$ (**Baseline / Usual Level**): Player's general underlying ability across all match situations.
   - $\delta$ (**Pressure Shift**): The specific clutch elevation or suppression attributable to high-leverage deliveries ($\text{Rating} = \beta + \delta$).
@@ -68,7 +68,7 @@ npx playwright test
 ## 5. Analytical Limitations & Governance
 
 1. **Pressure-Specific Variance**: Pressure-specific elevation beyond general talent baseline is statistically small and difficult to isolate; individual outcomes in crunch situations are predominantly governed by established baseline ability.
-2. **Statistical Ties in Chasing Tier**: Outside the top 3–5 ranks, credible intervals exhibit extensive mutual overlap. Ranks 7–12 represent statistical ties where exact ordering is subject to sampling variance.
+2. **Statistical Ties in Chasing Tier**: Outside the top 3–5 ranks, 80% intervals (bootstrap) exhibit extensive mutual overlap. Ranks 7–12 represent statistical ties where exact ordering is subject to sampling variance.
 3. **Extras Reconstruction**: Bye and leg-bye run attribution uses post-hoc trajectory inference rather than explicit tracking telemetry.
 4. **Asymmetric Win-Probability Horizon**: Innings-1 win-probability models naturally possess lower discrimination (AUC ~0.66) than Innings-2 chase models (AUC ~0.86) due to unresolved target scores and first-innings pitch trajectory variance.
 

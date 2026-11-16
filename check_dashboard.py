@@ -60,8 +60,8 @@ def check_players(rows, role, meta):
         teams = r.get("ipl_teams", []) + r.get("national_teams", []) + r.get("a_teams", [])
         if any(t.startswith("Pakistan") for t in teams):
             errors.append(f"{role}: Pakistan player in ranking: {r['name']}")
-        if r.get("active") is False:
-            errors.append(f"{role}: inactive player in ranking: {r['name']} ({r.get('days_since')} days)")
+        if r.get("active") is False or (r.get("days_since") is not None and r.get("days_since") > 365):
+            errors.append(f"{role}: inactive player in ranking: {r['name']} ({r.get('days_since')} days > 365)")
         if r.get("in_top10") != (r["rank"] <= 10):
             errors.append(f"{role}: in_top10 flag inconsistent for {r['name']}")
     if len({r["player_id"] for r in rows}) != len(rows):

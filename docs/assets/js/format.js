@@ -63,7 +63,7 @@ export function interval(p, min = -15, max = 55, isPink = false) {
     <div class="relative w-28 sm:w-36 h-4 flex items-center select-none" role="img" aria-label="Rating ${n(p.rating, 1)}, 80% CI: ${n(p.lo80, 1)} to ${n(p.hi80, 1)}">
       <!-- Baseline zero indicator -->
       <div class="absolute h-3 w-px bg-slate-200" style="left: ${pos(0)}%;"></div>
-      <!-- Credible Range Bar -->
+      <!-- 80% interval (bootstrap) bar -->
       <div class="absolute h-1.5 rounded-full opacity-30" style="left: ${a}%; width: ${width}%; background-color: ${color};"></div>
       <!-- Left Whisker -->
       <div class="absolute h-2.5 w-0.5 rounded-full" style="left: ${a}%; background-color: ${color};"></div>

@@ -56,14 +56,14 @@ def bootstrap_general_pressure(default, role: str, player_ids: np.ndarray) -> pd
 
 
 def bootstrap_eb(default, role: str, player_ids: np.ndarray, reps: int = 300) -> np.ndarray:
-    """Match-level bootstrap for empirical Bayes shrunk ratings."""
+    """Match-level bootstrap for empirical Bayes general shrunk ratings (E3_EB_general)."""
     d = default["rd"].df
     player_col = "striker_id" if role == "batter" else "bowler_id"
     sign = 1.0 if role == "batter" else -1.0
-    high = d[d["set"].eq("HIGH") & d[player_col].notna()].copy()
-    matches = np.unique(high["match_id"])
-    m_series = high["match_id"]
-    val_series = sign * high["y"]
+    all_balls = d[d[player_col].notna()].copy()
+    matches = np.unique(all_balls["match_id"])
+    m_series = all_balls["match_id"]
+    val_series = sign * all_balls["y"]
     sigma2 = float(np.var(val_series, ddof=1))
 
     def one(rep: int) -> np.ndarray:
@@ -77,7 +77,7 @@ def bootstrap_eb(default, role: str, player_ids: np.ndarray, reps: int = 300) ->
         if np.any(w_mask):
             w_sub = weights[w_mask]
             v_sub = val_series.to_numpy()[w_mask]
-            p_sub = high[player_col].to_numpy()[w_mask]
+            p_sub = all_balls[player_col].to_numpy()[w_mask]
             df_sub = pd.DataFrame({"p": p_sub, "wy": w_sub * v_sub, "w": w_sub})
             agg = df_sub.groupby("p").sum()
             c_idx = agg.index.intersection(player_ids)
@@ -90,24 +90,42 @@ def bootstrap_eb(default, role: str, player_ids: np.ndarray, reps: int = 300) ->
 
 
 def eb_point(default, role: str, player_ids: np.ndarray) -> np.ndarray:
-    """Empirical Bayes point estimate across HIGH deliveries."""
+    """Empirical Bayes point estimate across ALL deliveries (E3_EB_general)."""
     d = default["rd"].df
     player_col = "striker_id" if role == "batter" else "bowler_id"
     sign = 1.0 if role == "batter" else -1.0
-    high = d[d["set"].eq("HIGH") & d[player_col].notna()]
-    grouped = high.assign(_value=sign * high["y"]).groupby(player_col)["_value"].agg(["mean", "count"])
+    all_balls = d[d[player_col].notna()]
+    grouped = all_balls.assign(_value=sign * all_balls["y"]).groupby(player_col)["_value"].agg(["mean", "count"])
     means = pd.Series(0.0, index=player_ids)
     ns = pd.Series(0.0, index=player_ids)
     common_idx = grouped.index.intersection(player_ids)
     means.loc[common_idx] = grouped.loc[common_idx, "mean"]
     ns.loc[common_idx] = grouped.loc[common_idx, "count"]
-    sigma2 = float(np.var(sign * high["y"], ddof=1))
+    sigma2 = float(np.var(sign * all_balls["y"], ddof=1))
     return pc.eb_shrink(means.to_numpy(), ns.to_numpy(), sigma2)["post"]
+
+
+def get_overall_last_dates(d: pd.DataFrame) -> pd.Series:
+    """Compute the last match date across ANY delivery (batting or bowling) in the usable data."""
+    bat_last = d.groupby("striker_id")["match_date"].max()
+    bow_last = d.groupby("bowler_id")["match_date"].max()
+    all_pids = set(bat_last.index) | set(bow_last.index)
+    overall_last = {}
+    for p in all_pids:
+        dt1 = bat_last.get(p)
+        dt2 = bow_last.get(p)
+        if dt1 is not None and dt2 is not None:
+            overall_last[p] = max(dt1, dt2)
+        elif dt1 is not None:
+            overall_last[p] = dt1
+        else:
+            overall_last[p] = dt2
+    return pd.Series(overall_last)
 
 
 def make_ranking(default, role: str, excluded: set[int], boot: np.ndarray, threshold: int,
                  beta_delta: pd.DataFrame, point: np.ndarray, ridge_point: np.ndarray,
-                 estimator: str, active_only: bool = True) -> pd.DataFrame:
+                 estimator: str, overall_last_s: pd.Series, active_only: bool = True) -> pd.DataFrame:
     """Build the complete requested ranking table from fitted core objects."""
     d, rd = default["d"], default["rd"]
     player_col = "striker_id" if role == "batter" else "bowler_id"
@@ -123,14 +141,18 @@ def make_ranking(default, role: str, excluded: set[int], boot: np.ndarray, thres
     )
     teams = mapping.groupby(C["player_id"])[C["team_name"]].agg(lambda values: ", ".join(sorted(set(map(str, values))))).rename("teams")
     meta = d[d["set"].eq("HIGH")].groupby(player_col).agg(
-        n_HIGH_balls=("runs_total", "size"), last_date=("match_date", "max"), mean_w_opp=("w_opp", "mean")
+        n_HIGH_balls=("runs_total", "size"), mean_w_opp=("w_opp", "mean")
     ).rename_axis("player_id").reset_index()
+
+    total_balls = d[d[player_col].notna()].groupby(player_col).size().rename("n_balls_total").reset_index().rename(columns={player_col: "player_id"})
+
     by_comp = d[d["set"].eq("HIGH")].pivot_table(index=player_col, columns="comp_group", values="runs_total", aggfunc="size", fill_value=0)
     by_comp = by_comp.rename(columns={"IPL": "n_IPL_HIGH_balls", "T20I": "n_T20I_HIGH_balls"}).reset_index().rename(columns={player_col: "player_id"})
     units = pc.consistency_units(d, player_col, 1 if role == "batter" else -1, 4 if role == "batter" else 6)
     units = units.reset_index()[[player_col, "p_pos", "disaster_rate"]].rename(columns={player_col: "player_id"})
-    result = summary.merge(names, on="player_id", how="left").merge(teams, on="player_id", how="left").merge(meta, on="player_id", how="left").merge(by_comp, on="player_id", how="left").merge(units, on="player_id", how="left")
-    result = result.fillna({"n_IPL_HIGH_balls": 0, "n_T20I_HIGH_balls": 0, "p_pos": 0, "disaster_rate": 0})
+    result = summary.merge(names, on="player_id", how="left").merge(teams, on="player_id", how="left").merge(meta, on="player_id", how="left").merge(total_balls, on="player_id", how="left").merge(by_comp, on="player_id", how="left").merge(units, on="player_id", how="left")
+    result = result.fillna({"n_IPL_HIGH_balls": 0, "n_T20I_HIGH_balls": 0, "p_pos": 0, "disaster_rate": 0, "n_balls_total": 0})
+    result["n_balls_total"] = result["n_balls_total"].astype(int)
     result["rating_runs_per_100_balls"] = result["rating"] * 100
     result["WPA_points_per_100_balls"] = result["rating"] * default["K"]["all"]["kappa_run"] * 100
     general = pd.Series(
@@ -138,11 +160,23 @@ def make_ranking(default, role: str, excluded: set[int], boot: np.ndarray, thres
     )
     result["beta_general_runs_per_100_balls"] = general.reindex(result["player_id"]).to_numpy() * 100
     result["estimator"] = estimator
-    result["rating_ridge"] = pd.Series(ridge_point, index=ids).reindex(result["player_id"]).to_numpy() * 100
-    result["delta_pressure_runs_per_100_balls"] = result["rating_ridge"] - result["beta_general_runs_per_100_balls"]
+
+    # Ridge cross-check columns
+    if role == "batter":
+        result["rating_ridge"] = pd.Series(ridge_point, index=ids).reindex(result["player_id"]).to_numpy() * 100
+        result["beta_ridge"] = result["beta_general_runs_per_100_balls"]
+        result["delta_ridge"] = result["rating_ridge"] - result["beta_ridge"]
+    else:
+        result["rating_ridge"] = result["rating_runs_per_100_balls"]
+        result["beta_ridge"] = result["beta_general_runs_per_100_balls"]
+        result["delta_ridge"] = result["rating_ridge"] - result["beta_ridge"]
+
+    result["delta_pressure_runs_per_100_balls"] = result["delta_ridge"]
     result = result.merge(beta_delta, on="player_id", how="left")
     latest = pd.to_datetime(d["match_date"]).max()
-    result["last_match_date"] = pd.to_datetime(result["last_date"])
+
+    # Unified last match date across ANY delivery (batting or bowling)
+    result["last_match_date"] = pd.to_datetime(result["player_id"].map(overall_last_s))
     result["days_since_last_match"] = (latest - result["last_match_date"]).dt.days
     result["active_365"] = result["days_since_last_match"] <= 365
     result["lo80_runs_per_100_balls"] = np.minimum(result["lo80"] * 100, result["rating_runs_per_100_balls"])
@@ -154,10 +188,37 @@ def make_ranking(default, role: str, excluded: set[int], boot: np.ndarray, thres
     if active_only:
         result = result[result["active_365"]]
     result.insert(0, "rank", range(1, len(result) + 1))
-    return result[["rank", "player_id", "display_name", "teams", "rating_runs_per_100_balls", "WPA_points_per_100_balls", "beta_general_runs_per_100_balls", "delta_pressure_runs_per_100_balls", "boot_sd", "lo80_runs_per_100_balls", "hi80_runs_per_100_balls", "P_top10", "n_HIGH_balls", "n_IPL_HIGH_balls", "n_T20I_HIGH_balls", "last_match_date", "days_since_last_match", "active_365", "mean_w_opp", "p_pos", "disaster_rate", "beta_lo80_runs_per_100_balls", "beta_hi80_runs_per_100_balls", "delta_lo80_runs_per_100_balls", "delta_hi80_runs_per_100_balls", "estimator", "rating_ridge"]]
+    if role == "batter":
+        result["rank_ridge"] = result["rating_ridge"].rank(ascending=False, method="min").astype(int)
+    else:
+        result["rank_ridge"] = result["rank"]
+
+    # Compare with high-only dates to print players whose date changed by > 7 days
+    high_last = d[d["set"].eq("HIGH")].groupby(player_col)["match_date"].max()
+    old_dates = high_last.reindex(result["player_id"]).values
+    diff_days = (pd.to_datetime(result["last_match_date"].values) - pd.to_datetime(old_dates)).days
+    changed_mask = np.abs(np.nan_to_num(diff_days, nan=0.0)) > 7
+    if np.any(changed_mask):
+        changed = result[changed_mask].copy()
+        print(f"\n[{role.upper()}] Players whose last_match_date changed by > 7 days ({len(changed)}):")
+        for idx, row in changed.iterrows():
+            pos = result.index.get_loc(idx)
+            old_str = str(old_dates[pos])[:10]
+            new_str = str(row["last_match_date"])[:10]
+            df_val = int(diff_days[pos])
+            print(f"  {row['display_name']} (ID {row['player_id']}): was {old_str}, now {new_str} (diff +{df_val} days)")
+
+    return result[[
+        "rank", "player_id", "display_name", "teams", "rating_runs_per_100_balls", "WPA_points_per_100_balls",
+        "beta_general_runs_per_100_balls", "delta_pressure_runs_per_100_balls", "boot_sd", "lo80_runs_per_100_balls",
+        "hi80_runs_per_100_balls", "P_top10", "n_HIGH_balls", "n_balls_total", "n_IPL_HIGH_balls", "n_T20I_HIGH_balls",
+        "last_match_date", "days_since_last_match", "active_365", "mean_w_opp", "p_pos", "disaster_rate",
+        "beta_lo80_runs_per_100_balls", "beta_hi80_runs_per_100_balls", "delta_lo80_runs_per_100_balls", "delta_hi80_runs_per_100_balls",
+        "estimator", "rating_ridge", "rank_ridge", "beta_ridge", "delta_ridge"
+    ]]
 
 
-def rank_variant(trial, role: str, estimator: str = None, excluded: set[int] = None, rho_inf: bool = False, ipl_only: bool = False) -> pd.DataFrame:
+def rank_variant(trial, role: str, estimator: str = None, excluded: set[int] = None, rho_inf: bool = False, ipl_only: bool = False, overall_last_s: pd.Series = None) -> pd.DataFrame:
     """Standardized ranking function applied uniformly across all variants in the sensitivity analysis."""
     d = trial["d"]
     rd = trial["rd"]
@@ -183,14 +244,16 @@ def rank_variant(trial, role: str, estimator: str = None, excluded: set[int] = N
 
     if estimator == "E3_EB_general":
         sign = 1.0 if role == "batter" else -1.0
-        high = d[d["set"].eq("HIGH") & d[player_col].notna()]
-        grouped = high.assign(_value=sign * high["y"]).groupby(player_col)["_value"].agg(["mean", "count"])
+        all_balls = d[d[player_col].notna()]
+        if ipl_only:
+            all_balls = all_balls[all_balls["comp_group"] == "IPL"]
+        grouped = all_balls.assign(_value=sign * all_balls["y"]).groupby(player_col)["_value"].agg(["mean", "count"])
         means = pd.Series(0.0, index=ids)
         ns = pd.Series(0.0, index=ids)
         c_idx = grouped.index.intersection(ids)
         means.loc[c_idx] = grouped.loc[c_idx, "mean"]
         ns.loc[c_idx] = grouped.loc[c_idx, "count"]
-        sigma2 = float(np.var(sign * high["y"], ddof=1))
+        sigma2 = float(np.var(sign * all_balls["y"], ddof=1))
         scores = pd.Series(pc.eb_shrink(means.to_numpy(), ns.to_numpy(), sigma2)["post"], index=ids)
     elif estimator == "E5_ridge_rho3":
         if rho_inf:
@@ -203,7 +266,10 @@ def rank_variant(trial, role: str, estimator: str = None, excluded: set[int] = N
         raise ValueError(f"Unknown estimator: {estimator}")
 
     latest = pd.to_datetime(d["match_date"]).max()
-    last_dates = d.groupby(player_col)["match_date"].max()
+    if overall_last_s is not None:
+        last_dates = overall_last_s.reindex(eligible)
+    else:
+        last_dates = d.groupby(player_col)["match_date"].max().reindex(eligible)
     days_since = (latest - pd.to_datetime(last_dates)).dt.days
     active = days_since[days_since <= 365].index
 
@@ -259,6 +325,8 @@ def main() -> None:
             print(f"{role.capitalize()}: E5_ridge_rho3 selected (mean Pearson = {ridge_mean:.6f} vs EB {eb_mean:.6f}; {reason}).")
 
     # 3. Bootstrap & rating computation per role
+    overall_last_s = get_overall_last_dates(default["d"])
+
     bat_ids = default["rd"].bat_ids
     bowl_ids = default["rd"].bow_ids
     ridge_bat = default["fitted"]["bat_high"]
@@ -274,10 +342,10 @@ def main() -> None:
     bowl_beta_delta = bootstrap_general_pressure(default, "bowler", bowl_ids)
 
     # 4. Generate rankings (eligible, active 365, Pakistan excluded, Bangladesh in)
-    bat = make_ranking(default, "batter", primary, bat_boot, 150, bat_beta_delta, bat_point, ridge_bat, decisions["batter"])
-    bowl = make_ranking(default, "bowler", primary, bowl_boot, 120, bowl_beta_delta, bowl_point, ridge_bowl, decisions["bowler"])
-    alt_bat = make_ranking(default, "batter", alternate, bat_boot, 150, bat_beta_delta, bat_point, ridge_bat, decisions["batter"])
-    alt_bowl = make_ranking(default, "bowler", alternate, bowl_boot, 120, bowl_beta_delta, bowl_point, ridge_bowl, decisions["bowler"])
+    bat = make_ranking(default, "batter", primary, bat_boot, 150, bat_beta_delta, bat_point, ridge_bat, decisions["batter"], overall_last_s)
+    bowl = make_ranking(default, "bowler", primary, bowl_boot, 120, bowl_beta_delta, bowl_point, ridge_bowl, decisions["bowler"], overall_last_s)
+    alt_bat = make_ranking(default, "batter", alternate, bat_boot, 150, bat_beta_delta, bat_point, ridge_bat, decisions["batter"], overall_last_s)
+    alt_bowl = make_ranking(default, "bowler", alternate, bowl_boot, 120, bowl_beta_delta, bowl_point, ridge_bowl, decisions["bowler"], overall_last_s)
 
     for name, frame in {
         "batters": bat, "bowlers": bowl,
@@ -292,8 +360,8 @@ def main() -> None:
     # 5. Rebuild sensitivity table calling the SAME final-ranking function for every variant
     print("\n--- REBUILDING SENSITIVITY TABLE ---")
     base_ranked = {
-        "batter": rank_variant(default, "batter", estimator=decisions["batter"], excluded=primary),
-        "bowler": rank_variant(default, "bowler", estimator=decisions["bowler"], excluded=primary)
+        "batter": rank_variant(default, "batter", estimator=decisions["batter"], excluded=primary, overall_last_s=overall_last_s),
+        "bowler": rank_variant(default, "bowler", estimator=decisions["bowler"], excluded=primary, overall_last_s=overall_last_s)
     }
 
     sensitivity_rows = []
@@ -309,6 +377,7 @@ def main() -> None:
     ]
 
     for label, trial in variants:
+        trial_last = overall_last_s if trial is default else get_overall_last_dates(trial["d"])
         for role in ("batter", "bowler"):
             base_r = base_ranked[role]
             base_ids10 = set(base_r.head(10)["player_id"])
@@ -320,7 +389,7 @@ def main() -> None:
                     "top10_overlap": 10, "top15_overlap": 15, "kendall_tau": 1.0
                 })
             else:
-                trial_r = rank_variant(trial, role, estimator=decisions[role], excluded=primary)
+                trial_r = rank_variant(trial, role, estimator=decisions[role], excluded=primary, overall_last_s=trial_last)
                 trial_ids10 = set(trial_r.head(10)["player_id"])
                 trial_ids15 = set(trial_r.head(15)["player_id"])
                 common = pd.merge(base_r[["player_id", "score"]].rename(columns={"score": "base"}),
@@ -341,7 +410,7 @@ def main() -> None:
         base_ids15 = set(base_r.head(15)["player_id"])
 
         # rho_inf (only affects ridge)
-        inf_r = rank_variant(default, role, estimator=decisions[role], excluded=primary, rho_inf=True)
+        inf_r = rank_variant(default, role, estimator=decisions[role], excluded=primary, rho_inf=True, overall_last_s=overall_last_s)
         common_inf = pd.merge(base_r[["player_id", "score"]].rename(columns={"score": "base"}),
                               inf_r[["player_id", "score"]].rename(columns={"score": "trial"}),
                               on="player_id")
@@ -355,7 +424,7 @@ def main() -> None:
 
         # ridge vs EB estimator
         opp_estimator = "E5_ridge_rho3" if decisions[role] == "E3_EB_general" else "E3_EB_general"
-        opp_r = rank_variant(default, role, estimator=opp_estimator, excluded=primary)
+        opp_r = rank_variant(default, role, estimator=opp_estimator, excluded=primary, overall_last_s=overall_last_s)
         common_opp = pd.merge(base_r[["player_id", "score"]].rename(columns={"score": "base"}),
                               opp_r[["player_id", "score"]].rename(columns={"score": "trial"}),
                               on="player_id")
@@ -368,7 +437,7 @@ def main() -> None:
         })
 
         # IPL_only
-        ipl_r = rank_variant(default, role, estimator=decisions[role], excluded=primary, ipl_only=True)
+        ipl_r = rank_variant(default, role, estimator=decisions[role], excluded=primary, ipl_only=True, overall_last_s=overall_last_s)
         common_ipl = pd.merge(base_r[["player_id", "score"]].rename(columns={"score": "base"}),
                               ipl_r[["player_id", "score"]].rename(columns={"score": "trial"}),
                               on="player_id")
@@ -474,7 +543,7 @@ def main() -> None:
             profiles.append({
                 "role": role, "player_id": player_id, "display_name": frame.loc[frame["player_id"].eq(player_id), "display_name"].iloc[0],
                 "IPL_HIGH": int((h["comp_group"] == "IPL").sum()), "T20I_HIGH": int((h["comp_group"] == "T20I").sum()),
-                "last_match_date": p["match_date"].max(), "HIGH_run_rate_per_over": h["runs_total"].mean() * 6,
+                "last_match_date": overall_last_s.get(player_id, p["match_date"].max()), "HIGH_run_rate_per_over": h["runs_total"].mean() * 6,
                 "LOW_run_rate_per_over": l["runs_total"].mean() * 6, "HIGH_n": len(h), "LOW_n": len(l),
                 "strike_rate_HIGH": h["runs_total"].sum() / max(len(h), 1) * 100 if role == "batter" else np.nan,
                 "strike_rate_LOW": l["runs_total"].sum() / max(len(l), 1) * 100 if role == "batter" else np.nan,

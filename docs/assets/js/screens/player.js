@@ -69,11 +69,11 @@ export function renderPlayer(container, state, data) {
   let deltaCaption = "";
   if (player.delta_lo80 != null && player.delta_hi80 != null) {
     if (player.delta_lo80 > 0) {
-      deltaCaption = `Elevated clutch elevation (+${player.delta.toFixed(1)} runs/100b). The 80% credible interval is strictly above zero, indicating positive performance elevation under pressure.`;
+      deltaCaption = `Elevated clutch elevation (+${player.delta.toFixed(1)} runs/100b). The 80% interval (bootstrap) is strictly above zero, indicating positive performance elevation under pressure.`;
     } else if (player.delta_hi80 < 0) {
-      deltaCaption = `Clutch suppression (${player.delta.toFixed(1)} runs/100b). The 80% credible interval is strictly below zero, indicating pressure attenuation relative to standard situations.`;
+      deltaCaption = `Clutch suppression (${player.delta.toFixed(1)} runs/100b). The 80% interval (bootstrap) is strictly below zero, indicating pressure attenuation relative to standard situations.`;
     } else {
-      deltaCaption = `Neutral pressure shift (${player.delta > 0 ? "+" : ""}${player.delta.toFixed(1)} runs/100b). The 80% credible interval spans zero, indicating performance is primarily governed by baseline ability rather than clutch volatility.`;
+      deltaCaption = `Neutral pressure shift (${player.delta > 0 ? "+" : ""}${player.delta.toFixed(1)} runs/100b). The 80% interval (bootstrap) spans zero, indicating performance is primarily governed by baseline ability rather than clutch volatility.`;
     }
   }
 
@@ -132,11 +132,11 @@ export function renderPlayer(container, state, data) {
       <!-- Core Metrics Triad: Rating, P(Top 10), Sample Volume -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        <!-- 1. Latent Clutch Rating -->
+        <!-- 1. Published Clutch Rating -->
         <div class="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-card flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-              <span>Latent Clutch Rating</span>
+              <span class="text-slate-700 font-extrabold">Published Rating</span>
               <span class="px-2 py-0.5 rounded-md bg-[#FFF0F7] text-[#E6007E] text-[10px] font-bold">
                 ${player.pctile ? `Top ${(100 - player.pctile).toFixed(1)}%` : "Top Tier"}
               </span>
@@ -147,13 +147,13 @@ export function renderPlayer(container, state, data) {
               </span>
               <span class="text-xs text-slate-500 font-medium">runs / 100b</span>
             </div>
-            <div class="text-xs text-slate-400 font-mono mt-1">
-              80% Credible Range: [${n(player.lo80, 1)}, ${n(player.hi80, 1)}]
+            <div class="text-xs text-slate-500 font-mono mt-1">
+              80% interval (bootstrap): [${n(player.lo80, 1)}, ${n(player.hi80, 1)}]
             </div>
           </div>
           
           <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Posterior distribution mean</span>
+            <span class="font-mono text-slate-600 font-semibold">${player.estimator || (role === "batter" ? "E3_EB_general" : "E5_ridge_rho3")}</span>
             <span class="font-bold text-slate-700">WPA: ${n(player.wpa, 2)} pts/100b</span>
           </div>
         </div>
@@ -193,11 +193,14 @@ export function renderPlayer(container, state, data) {
                 ${isBelowFloor ? "Low Sample" : "Robust Sample"}
               </span>
             </div>
-            <div class="flex items-baseline gap-2">
+            <div class="flex items-baseline gap-2 flex-wrap">
               <span class="text-3xl sm:text-4xl font-extrabold text-slate-900 font-mono tracking-tight">
                 ${n(player.n_high)}
               </span>
               <span class="text-xs text-slate-500 font-medium">HIGH balls</span>
+              ${player.n_balls_total != null ? `
+                <span class="text-xs text-slate-400 font-medium">/ <strong class="text-slate-700">${n(player.n_balls_total)}</strong> total balls</span>
+              ` : ""}
             </div>
 
             <!-- Stacked bar for IPL vs T20I -->
@@ -213,6 +216,44 @@ export function renderPlayer(container, state, data) {
           </div>
         </div>
 
+      </div>
+
+      <!-- Ridge cross-check (context only) -->
+      <div class="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-card flex flex-col gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-400 text-[18px]">verified</span>
+            <h2 class="text-sm font-bold text-slate-900">Ridge cross-check (context only)</h2>
+            <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">Opposition & Leverage Regularized</span>
+          </div>
+          <span class="text-xs text-slate-400">Additive specification: Rating = Usual Level (β) + Pressure Shift (δ)</span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col gap-1">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ridge Rating</span>
+            <span class="text-lg font-mono font-extrabold text-slate-900">${player.rating_ridge != null ? (player.rating_ridge > 0 ? "+" : "") + n(player.rating_ridge, 1) : (player.rating != null ? (player.rating > 0 ? "+" : "") + n(player.rating, 1) : "—")}</span>
+            <span class="text-[10px] text-slate-500">runs / 100b</span>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col gap-1">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ridge Rank</span>
+            <span class="text-lg font-mono font-extrabold text-slate-900">${player.rank_ridge != null ? "#" + player.rank_ridge : "#" + player.rank}</span>
+            <span class="text-[10px] text-slate-500">among ${pool.length} ${role}s</span>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col gap-1">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Usual Level (β)</span>
+            <span class="text-lg font-mono font-extrabold text-slate-900">${(player.beta_ridge != null ? player.beta_ridge : player.beta) != null ? ((player.beta_ridge != null ? player.beta_ridge : player.beta) > 0 ? "+" : "") + n(player.beta_ridge != null ? player.beta_ridge : player.beta, 1) : "—"}</span>
+            <span class="text-[10px] text-slate-500">baseline capability</span>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex flex-col gap-1">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pressure Shift (δ)</span>
+            <span class="text-lg font-mono font-extrabold ${(player.delta_ridge != null ? player.delta_ridge : player.delta) > 0 ? "text-[#E6007E]" : "text-slate-700"}">${(player.delta_ridge != null ? player.delta_ridge : player.delta) != null ? ((player.delta_ridge != null ? player.delta_ridge : player.delta) > 0 ? "+" : "") + n(player.delta_ridge != null ? player.delta_ridge : player.delta, 1) : "—"}</span>
+            <span class="text-[10px] text-slate-500">clutch differential</span>
+          </div>
+        </div>
       </div>
 
       <!-- Usual Level vs Pressure Shift Decomposition -->

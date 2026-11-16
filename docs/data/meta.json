@@ -1,12 +1,16 @@
 {
- "generated_at": "2026-11-15 16:38 UTC",
+ "generated_at": "2026-11-16 08:11 UTC",
+ "estimators": {
+  "batter": "E3_EB_general",
+  "bowler": "E5_ridge_rho3"
+ },
  "counts": {
   "usable_matches": 805,
   "usable_balls": 192156,
   "ipl_matches": 352,
   "t20i_and_other_matches": 453,
   "eligible_batters": 91,
-  "eligible_bowlers": 103
+  "eligible_bowlers": 104
  },
  "data_window": [
   "2022-01-22",

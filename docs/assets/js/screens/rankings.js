@@ -133,7 +133,7 @@ export function renderRankings(container, state, data) {
               <span class="text-[10px] font-bold text-[#9D174D] uppercase tracking-wider bg-[#FFF0F7] px-2 py-0.5 rounded-md border border-[#E6007E]/20">
                 SEASON 2026 ENGINE
               </span>
-              <span class="text-xs text-slate-400 font-medium">• 80% Credible Interval Posterior Mean</span>
+              <span class="text-xs text-slate-400 font-medium">• 80% interval (bootstrap) Posterior Mean</span>
             </div>
             <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight" tabindex="-1">
               Player Rankings
@@ -381,7 +381,7 @@ export function renderRankings(container, state, data) {
               <span class="w-2 h-2 rounded-full bg-[#E6007E]"></span>
             </div>
 
-            <div id="rankings-forest-container" role="region" aria-label="Top 25 forest plot showing point estimates and 80% credible intervals" class="w-full h-[580px]">
+            <div id="rankings-forest-container" role="region" aria-label="Top 25 forest plot showing point estimates and 80% interval (bootstrap)" class="w-full h-[580px]">
               <!-- ECharts forest plot rendered here -->
             </div>
 

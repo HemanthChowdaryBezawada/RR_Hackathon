@@ -224,7 +224,7 @@ export function renderOverview(container, state, data) {
                   <th class="py-2.5 px-3 w-12 text-left">#</th>
                   <th class="py-2.5 px-3 text-left">Player</th>
                   <th class="py-2.5 px-3 text-right">Rating</th>
-                  <th class="py-2.5 px-3 text-center hidden sm:table-cell">80% Credible Range</th>
+                  <th class="py-2.5 px-3 text-center hidden sm:table-cell">80% Interval (Bootstrap)</th>
                   <th class="py-2.5 px-3 text-right">P(Top 10)</th>
                 </tr>
               </thead>
@@ -259,7 +259,7 @@ export function renderOverview(container, state, data) {
                   <th class="py-2.5 px-3 w-12 text-left">#</th>
                   <th class="py-2.5 px-3 text-left">Player</th>
                   <th class="py-2.5 px-3 text-right">Rating</th>
-                  <th class="py-2.5 px-3 text-center hidden sm:table-cell">80% Credible Range</th>
+                  <th class="py-2.5 px-3 text-center hidden sm:table-cell">80% Interval (Bootstrap)</th>
                   <th class="py-2.5 px-3 text-right">P(Top 10)</th>
                 </tr>
               </thead>

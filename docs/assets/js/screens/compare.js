@@ -52,7 +52,7 @@ export function renderCompare(container, state, data) {
             Player Comparison
           </h1>
           <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-3xl leading-relaxed">
-            Compare pressure performance, underlying ability decomposition, and credible intervals across qualified candidates.
+            Compare pressure performance, underlying ability decomposition, and 80% intervals (bootstrap) across qualified candidates.
           </p>
         </div>
 
@@ -125,13 +125,13 @@ export function renderCompare(container, state, data) {
         }
       </div>
 
-      <!-- Credible Intervals Overlap Visualizer -->
+      <!-- 80% Intervals (Bootstrap) Overlap Visualizer -->
       ${
         players.length > 0
           ? `
             <div class="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-card flex flex-col gap-4">
               <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h2 class="text-sm font-bold text-slate-900">Latent Clutch Rating Posterior Uncertainty (80% Credible Intervals)</h2>
+                <h2 class="text-sm font-bold text-slate-900">Latent Clutch Rating Posterior Uncertainty (80% interval (bootstrap))</h2>
                 <span class="text-xs text-slate-400 font-medium">Overlapping whiskers indicate statistical parity</span>
               </div>
               
@@ -152,7 +152,7 @@ export function renderCompare(container, state, data) {
               </div>
 
               <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-500 leading-relaxed">
-                <strong>Analytical Takeaway:</strong> Overlapping credible intervals indicate uncertainty in relative ordering. Rank differences should not automatically be interpreted as meaningful performance separation.
+                <strong>Analytical Takeaway:</strong> Overlapping 80% intervals (bootstrap) indicate uncertainty in relative ordering. Rank differences should not automatically be interpreted as meaningful performance separation.
               </div>
             </div>
           `
@@ -190,7 +190,7 @@ export function renderCompare(container, state, data) {
                       ${players.map(p => `<td class="py-3 px-4 font-mono font-bold text-[#E6007E]">${pct(p.p_top10)}</td>`).join("")}
                     </tr>
                     <tr>
-                      <td class="py-3 px-4 text-slate-500">80% Credible Range</td>
+                      <td class="py-3 px-4 text-slate-500">80% Interval (Bootstrap)</td>
                       ${players.map(p => `<td class="py-3 px-4 font-mono text-slate-600">[${n(p.lo80, 1)}, ${n(p.hi80, 1)}]</td>`).join("")}
                     </tr>
                     <tr>

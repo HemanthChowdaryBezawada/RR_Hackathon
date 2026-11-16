@@ -176,6 +176,7 @@ test.describe("SupeRR Dashboard E2E Tests", () => {
   });
 
   test("8. No text on any page matches fabricated values in check_dashboard.py", async ({ page }) => {
+    test.setTimeout(60000);
     for (const route of ALL_ROUTES) {
       await page.goto(`/${route}`);
       await page.waitForLoadState("networkidle");

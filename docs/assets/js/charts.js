@@ -28,7 +28,7 @@ export function forest(el, rows) {
   if (!el || !rows || !rows.length) return null;
   const data = rows.slice(0, 25).reverse();
   el.setAttribute("role", "img");
-  el.setAttribute("aria-label", "Top 25 forest plot showing point estimates and 80% credible intervals");
+  el.setAttribute("aria-label", "Top 25 forest plot showing point estimates and 80% interval (bootstrap)");
   
   return chart(el, {
     tooltip: {
